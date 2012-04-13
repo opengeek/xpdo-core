@@ -42,7 +42,7 @@
  * @package xpdo
  * @subpackage om
  */
-class xPDOObject {
+abstract class xPDOObject {
     /**
      * A convenience reference to the xPDO object.
      * @var xPDO
@@ -2468,12 +2468,3 @@ class xPDOObject {
         return $aliases;
     }
 }
-
-/**
- * Extend to define a class with a native integer primary key field named id.
- *
- * @see xpdo/om/mysql/xpdosimpleobject.map.inc.php
- * @package xpdo
- * @subpackage om
- */
-class xPDOSimpleObject extends xPDOObject {}

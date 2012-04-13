@@ -255,6 +255,11 @@ class xPDO {
     public $_quoteChar= "'";
 
     /**
+     * @var array An associative array of classes available in loaded packages.
+     */
+    public $_classes = array();
+
+    /**
      * @var array A static collection of xPDO instances.
      */
     protected static $instances = array();
@@ -333,6 +338,7 @@ class xPDO {
             $this->config = array_merge($this->config, $this->getConnection($initOptions)->config);
             $this->getDriver();
             $this->setPackage('om', XPDO_CORE_PATH, $this->config[xPDO::OPT_TABLE_PREFIX]);
+            $this->addPackage('', XPDO_CORE_PATH, $this->config[xPDO::OPT_TABLE_PREFIX]);
             if (isset($this->config[xPDO::OPT_BASE_PACKAGES]) && !empty($this->config[xPDO::OPT_BASE_PACKAGES])) {
                 $basePackages= explode(',', $this->config[xPDO::OPT_BASE_PACKAGES]);
                 foreach ($basePackages as $basePackage) {
@@ -351,19 +357,49 @@ class xPDO {
                     }
                 }
             }
-            $this->loadClass('xPDOObject');
-            $this->loadClass('xPDOSimpleObject');
-            if (isset($this->config[xPDO::OPT_BASE_CLASSES])) {
-                foreach (array_keys($this->config[xPDO::OPT_BASE_CLASSES]) as $baseClass) {
-                    $this->loadClass($baseClass);
-                }
-            }
+            spl_autoload_register(array($this, '_autoload'), false);
             if (isset($this->config[xPDO::OPT_CACHE_PATH])) {
                 $this->cachePath = $this->config[xPDO::OPT_CACHE_PATH];
             }
         } catch (Exception $e) {
             throw new xPDOException("Could not instantiate xPDO: " . $e->getMessage());
         }
+    }
+
+    private function _autoload($className) {
+        $pathSeparators = array('\\' => '/', '.' => '/');
+        $className = ltrim(strtr($className, $pathSeparators), '/');
+        $pieces = explode('/', $className);
+        $classFile = array_pop($pieces);
+        $classPath = !empty($pieces) ? implode('/', $pieces) . '/' : '';
+        if (isset($this->_classes[$classFile]) && isset($this->packages[$this->_classes[$classFile]])) {
+            $pkgName = $this->_classes[$classFile];
+            $pkgMeta = $this->packages[$pkgName];
+            if (include $pkgMeta['path'] . $pkgName . '/' . $classPath . strtolower($classFile) . '.class.php') {
+                if (include $pkgMeta['path'] . $pkgName . '/' . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
+                    $xpdo_meta_map= & $this->map;
+                    if (!include $pkgMeta['path'] . $pkgName . '/' . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
+                        $this->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
+                    } else {
+                        if (!isset($this->map[$classFile]['fieldAliases'])) {
+                            $this->map[$classFile]['fieldAliases'] = array();
+                        }
+                        return true;
+                    }
+                }
+            }
+        } else {
+            foreach ($this->packages as $pkgName => $pkgMeta) {
+                if (!empty($pkgName)) $pkgName .= '/';
+                if (include $pkgMeta['path'] . $pkgName . $classPath . strtolower($classFile) . '.class.php') {
+                    if (file_exists($pkgMeta['path'] . $pkgName . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
+                        include $pkgMeta['path'] . $pkgName . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
+                    }
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
@@ -469,8 +505,10 @@ class xPDO {
             $prefix= !is_string($prefix) && array_key_exists('prefix', $this->packages[$pkg]) ? $this->packages[$pkg]['prefix'] : $prefix;
         }
         $set= $this->addPackage($pkg, $path, $prefix);
-        $this->package= $set == true ? $pkg : $this->package;
-        if ($set && is_string($prefix)) $this->config[xPDO::OPT_TABLE_PREFIX]= $prefix;
+        if ($set) {
+            $this->package = $pkg;
+            if (is_string($prefix)) $this->config[xPDO::OPT_TABLE_PREFIX]= $prefix;
+        }
         return $set;
     }
 
@@ -484,20 +522,20 @@ class xPDO {
      */
     public function addPackage($pkg= '', $path= '', $prefix= null) {
         $added= false;
-        if (is_string($pkg) && !empty($pkg)) {
-            if (!is_string($path) || empty($path)) {
-                $this->log(xPDO::LOG_LEVEL_ERROR, "Invalid path specified for package: {$pkg}; using default xpdo model path: " . XPDO_CORE_PATH . 'om/');
-                $path= XPDO_CORE_PATH . 'om/';
-            }
-            if (!is_dir($path)) {
-                $this->log(xPDO::LOG_LEVEL_ERROR, "Path specified for package {$pkg} is not a valid or accessible directory: {$path}");
-            } else {
-                $prefix= !is_string($prefix) ? $this->config[xPDO::OPT_TABLE_PREFIX] : $prefix;
-                if (!array_key_exists($pkg, $this->packages) || $this->packages[$pkg]['path'] !== $path || $this->packages[$pkg]['prefix'] !== $prefix) {
-                    $this->packages[$pkg]= array('path' => $path, 'prefix' => $prefix);
-                    $this->setPackageMeta($pkg, $path);
+        if (is_string($pkg)) {
+            if (is_string($path)) {
+                if (!is_dir($path)) {
+                    $this->log(xPDO::LOG_LEVEL_ERROR, "Path specified for package {$pkg} is not a valid or accessible directory: {$path}");
+                } else {
+                    $prefix= !is_string($prefix) ? $this->config[xPDO::OPT_TABLE_PREFIX] : $prefix;
+                    if (!array_key_exists($pkg, $this->packages) || $this->packages[$pkg]['path'] !== $path || $this->packages[$pkg]['prefix'] !== $prefix) {
+                        $this->packages[$pkg]= array('path' => $path, 'prefix' => $prefix);
+                        $this->setPackageMeta($pkg, $path);
+                    }
+                    $added= true;
                 }
-                $added= true;
+            } else {
+                $this->log(xPDO::LOG_LEVEL_ERROR, "Invalid path specified for package: {$pkg}");
             }
         } else {
             $this->log(xPDO::LOG_LEVEL_ERROR, 'addPackage called with an invalid package name.');
@@ -526,6 +564,10 @@ class xPDO {
                             $this->classMap[$className] = array();
                         }
                         $this->classMap[$className] = array_unique(array_merge($this->classMap[$className],$extends));
+                        if (!isset($this->_classes[$className])) $this->_classes[$className] = $pkg;
+                        foreach ($this->classMap[$className] as $class) {
+                            if (!isset($this->_classes[$class])) $this->_classes[$class] = $pkg;
+                        }
                     }
                     $set = true;
                 }
@@ -583,82 +625,23 @@ class xPDO {
             $typePos= strrpos($fqn, '_' . $this->config['dbtype']);
             if ($typePos !== false) {
                 $fqn= substr($fqn, 0, $typePos);
-        }
+            }
         }
         $pos= strrpos($fqn, '.');
         if ($pos === false) {
             $class= $fqn;
-            if ($transient) {
-                $fqn= strtolower($class);
-            } else {
-                $fqn= $this->config['dbtype'] . '.' . strtolower($class);
-            }
         } else {
             $class= substr($fqn, $pos +1);
-            if ($transient) {
-                $fqn= substr($fqn, 0, $pos) . '.' . strtolower($class);
-            } else {
-                $fqn= substr($fqn, 0, $pos) . '.' . $this->config['dbtype'] . '.' . strtolower($class);
-            }
         }
-        // check if class exists
         if (!$transient && isset ($this->map[$class])) return $class;
-        $included= class_exists($class, false);
-        if ($included) {
-            if ($transient || (!$transient && isset ($this->map[$class]))) {
-                return $class;
+        $classname = $class;
+        if (!class_exists($class, false)) {
+            if (!$this->_autoload($fqn)) {
+                $class = false;
             }
-        }
-        $classname= $class;
-        if (!empty($path) || $ignorePkg) {
-            $class= $this->_loadClass($class, $fqn, $included, $path, $transient);
-        } elseif (isset ($this->packages[$this->package])) {
-            $pqn= $this->package . '.' . $fqn;
-            if (!$pkgClass= $this->_loadClass($class, $pqn, $included, $this->packages[$this->package]['path'], $transient)) {
-                if ($otherPkgs= array_diff_assoc($this->packages, array($this->package => $this->packages[$this->package]))) {
-                    foreach ($otherPkgs as $pkg => $pkgDef) {
-                        $pqn= $pkg . '.' . $fqn;
-                        if ($pkgClass= $this->_loadClass($class, $pqn, $included, $pkgDef['path'], $transient)) {
-                            break;
-                        }
-                    }
-                }
-            }
-            $class= $pkgClass;
-        } else {
-            $class= false;
         }
         if ($class === false) {
             $this->log(xPDO::LOG_LEVEL_ERROR, "Could not load class: {$classname} from {$fqn}.");
-        }
-        return $class;
-    }
-
-    protected function _loadClass($class, $fqn, $included= false, $path= '', $transient= false) {
-        if (empty($path)) $path= XPDO_CORE_PATH;
-        if (!$included) {
-            /* turn to filesystem path and enforce all lower-case paths and filenames */
-            $fqcn= str_replace('.', '/', $fqn) . '.class.php';
-            /* include class */
-            if (!file_exists($path . $fqcn)) return false;
-            if (!$rt= include_once ($path . $fqcn)) {
-                $this->log(xPDO::LOG_LEVEL_WARN, "Could not load class: {$class} from {$path}{$fqcn}");
-                $class= false;
-            }
-        }
-        if ($class && !$transient && !isset ($this->map[$class])) {
-            $mapfile= strtr($fqn, '.', '/') . '.map.inc.php';
-            if (file_exists($path . $mapfile)) {
-                $xpdo_meta_map= & $this->map;
-                $rt= include ($path . $mapfile);
-                if (!$rt || !isset($this->map[$class])) {
-                    $this->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map {$mapfile} for class {$class} from {$fqn}");
-                } else {
-                    if (!array_key_exists('fieldAliases', $this->map[$class])) {
-                        $this->map[$class]['fieldAliases'] = array();
-                    }
-                }
-            }
         }
         return $class;
     }
@@ -754,13 +737,10 @@ class xPDO {
      * new object could not be instantiated.
      */
     public function newObject($className, $fields= array ()) {
-        $instance= null;
-        if ($className= $this->loadClass($className)) {
-            $className .=  '_' . $this->config['dbtype'];
-            if ($instance= new $className ($this)) {
-                if (is_array($fields) && !empty ($fields)) {
-                    $instance->fromArray($fields);
-                }
+        $instance= new $className($this);
+        if ($instance) {
+            if (is_array($fields) && !empty ($fields)) {
+                $instance->fromArray($fields);
             }
         }
         return $instance;
@@ -1854,8 +1834,8 @@ class xPDO {
      *      derivatives in declared packages.
      * @return xPDOCacheManager The xPDOCacheManager for this xPDO instance.
      */
-    public function getCacheManager($class= 'cache.xPDOCacheManager', $options = array('path' => XPDO_CORE_PATH, 'ignorePkg' => true)) {
-        $actualClass = $this->loadClass($class, $options['path'], $options['ignorePkg'], true);
+    public function getCacheManager($class= 'cache.xPDOCacheManager', $options = array()) {
+        $actualClass = $this->loadClass($class, '', false, true);
         if ($this->cacheManager === null || !is_object($this->cacheManager) || !($this->cacheManager instanceof $actualClass)) {
             if ($this->cacheManager= new $actualClass($this, $options)) {
                     $this->_cacheEnabled= true;
@@ -2524,8 +2504,8 @@ class xPDO {
      * @return xPDOQuery The resulting xPDOQuery instance or false if unsuccessful.
      */
     public function newQuery($class, $criteria= null, $cacheFlag= true) {
-        $query= false;
-        if ($this->loadClass($this->config['dbtype'] . '.xPDOQuery', '', false, true)) {
+        $query = false;
+        if (class_exists('xPDOQuery')) {
             $xpdoQueryClass= 'xPDOQuery_' . $this->config['dbtype'];
             if ($query= new $xpdoQueryClass($this, $class, $criteria)) {
                 $query->cacheFlag= $cacheFlag;
