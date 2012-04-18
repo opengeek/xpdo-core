@@ -29,7 +29,7 @@ include(dirname(dirname(dirname(dirname(__FILE__)))) . '/test/properties.inc.php
 $dbtypes = array('mysql', 'sqlite', 'sqlsrv');
 
 foreach ($dbtypes as $dbtype) {
-    $xpdo= new xPDO($properties["{$dbtype}_string_dsn_test"], $properties["{$dbtype}_string_username"], $properties["{$dbtype}_string_password"], $properties["{$dbtype}_array_driverOptions"]);
+    $xpdo= new xPDO($properties["{$dbtype}_string_dsn_test"], $properties["{$dbtype}_string_username"], $properties["{$dbtype}_string_password"], $properties["{$dbtype}_array_options"], $properties["{$dbtype}_array_driverOptions"]);
     $xpdo->setPackage('sample', $properties['xpdo_test_path'] . 'model/');
     $xpdo->setLogTarget(XPDO_CLI_MODE ? 'ECHO' : 'HTML');
     $xpdo->setLogLevel(xPDO::LOG_LEVEL_INFO);

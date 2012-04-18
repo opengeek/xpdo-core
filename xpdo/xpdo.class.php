@@ -294,6 +294,62 @@ class xPDO {
         return self::$instances[$id];
     }
 
+    protected static function autoload(xPDO &$instance, $className, $path = '', $ignorePkg = false) {
+        $pathSeparators = array('\\' => '/', '.' => '/');
+        $className = ltrim(strtr($className, $pathSeparators), '/');
+        $pieces = explode('/', $className);
+        $classFile = array_pop($pieces);
+        $driverClassPos = strpos($classFile, "_{$instance->getOption('dbtype')}");
+        $driverClass = $classFile;
+        if ($driverClassPos > 0) {
+            $classFile = substr($classFile, 0, $driverClassPos);
+        }
+        $classPath = !empty($pieces) ? implode('/', $pieces) . '/' : '';
+        if (isset($instance->_classes[$classFile]) && isset($instance->packages[$instance->_classes[$classFile]])) {
+            $pkgName = strtr($instance->_classes[$classFile], $pathSeparators);
+            $pkgMeta = $instance->packages[$instance->_classes[$classFile]];
+            $isSubPkg = strpos($instance->_classes[$classFile], '.') !== false ? true : false;
+            if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . '/' . ($isSubPkg ? '' : $classPath) . strtolower($classFile) . '.class.php') {
+                if (@include $pkgMeta['path'] . $pkgName . '/' . ($isSubPkg ? '' : $classPath) . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
+                    $xpdo_meta_map= & $instance->map;
+                    if (!@include $pkgMeta['path'] . $pkgName . '/' . ($isSubPkg ? '' : $classPath) . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
+                        $instance->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
+                    } else {
+                        if (!isset($xpdo_meta_map[$classFile]['fieldAliases'])) {
+                            $xpdo_meta_map[$classFile]['fieldAliases'] = array();
+                        }
+                        unset($xpdo_meta_map);
+                        return true;
+                    }
+                }
+            }
+        } else {
+            if (!empty($path)) {
+                if ($driverClassPos > 0 || @include $path . $classPath . strtolower($classFile) . '.class.php') {
+                    if (file_exists($path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
+                        @include $path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
+                    }
+                    return true;
+                }
+            }
+            if ($ignorePkg !== true) {
+                foreach ($instance->packages as $pkgName => $pkgMeta) {
+                    if (!empty($pkgName)) {
+                        $pkgName = strtr($pkgName, $pathSeparators);
+                        $pkgName .= '/';
+                    }
+                    if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . $classPath . strtolower($classFile) . '.class.php') {
+                        if (file_exists($pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
+                            @include $pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
+                        }
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * The xPDO Constructor.
      *
@@ -336,9 +392,14 @@ class xPDO {
             }
             $initOptions = $this->getOption(xPDO::OPT_CONN_INIT, null, array());
             $this->config = array_merge($this->config, $this->getConnection($initOptions)->config);
-            $this->getDriver();
+            if (version_compare('5.3.0', XPDO_PHP_VERSION, '>')) {
+                spl_autoload_register(array(&$this, '_autoload'), false);
+            } else {
+                spl_autoload_register(array(&$this, '_autoload'), false, true);
+            }
             $this->setPackage('om', XPDO_CORE_PATH, $this->config[xPDO::OPT_TABLE_PREFIX]);
             $this->addPackage('', XPDO_CORE_PATH, $this->config[xPDO::OPT_TABLE_PREFIX]);
+            $this->getDriver();
             if (isset($this->config[xPDO::OPT_BASE_PACKAGES]) && !empty($this->config[xPDO::OPT_BASE_PACKAGES])) {
                 $basePackages= explode(',', $this->config[xPDO::OPT_BASE_PACKAGES]);
                 foreach ($basePackages as $basePackage) {
@@ -357,7 +418,6 @@ class xPDO {
                     }
                 }
             }
-            spl_autoload_register(array($this, '_autoload'), false);
             if (isset($this->config[xPDO::OPT_CACHE_PATH])) {
                 $this->cachePath = $this->config[xPDO::OPT_CACHE_PATH];
             }
@@ -366,40 +426,16 @@ class xPDO {
         }
     }
 
-    private function _autoload($className) {
-        $pathSeparators = array('\\' => '/', '.' => '/');
-        $className = ltrim(strtr($className, $pathSeparators), '/');
-        $pieces = explode('/', $className);
-        $classFile = array_pop($pieces);
-        $classPath = !empty($pieces) ? implode('/', $pieces) . '/' : '';
-        if (isset($this->_classes[$classFile]) && isset($this->packages[$this->_classes[$classFile]])) {
-            $pkgName = $this->_classes[$classFile];
-            $pkgMeta = $this->packages[$pkgName];
-            if (include $pkgMeta['path'] . $pkgName . '/' . $classPath . strtolower($classFile) . '.class.php') {
-                if (include $pkgMeta['path'] . $pkgName . '/' . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
-                    $xpdo_meta_map= & $this->map;
-                    if (!include $pkgMeta['path'] . $pkgName . '/' . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
-                        $this->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
-                    } else {
-                        if (!isset($this->map[$classFile]['fieldAliases'])) {
-                            $this->map[$classFile]['fieldAliases'] = array();
-                        }
-                        return true;
-                    }
-                }
-            }
-        } else {
-            foreach ($this->packages as $pkgName => $pkgMeta) {
-                if (!empty($pkgName)) $pkgName .= '/';
-                if (include $pkgMeta['path'] . $pkgName . $classPath . strtolower($classFile) . '.class.php') {
-                    if (file_exists($pkgMeta['path'] . $pkgName . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
-                        include $pkgMeta['path'] . $pkgName . $classPath . $this->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
-                    }
-                    return true;
-                }
-            }
-        }
-        return false;
+    public function destroy() {
+        spl_autoload_unregister(array(&$this, '_autoload'));
+    }
+
+    public function __destruct() {
+        $this->destroy();
+    }
+
+    protected function _autoload($className, $path = '', $ignorePkg = false) {
+        return self::autoload($this, $className, $path, $ignorePkg);
     }
 
     /**
@@ -636,7 +672,7 @@ class xPDO {
         if (!$transient && isset ($this->map[$class])) return $class;
         $classname = $class;
         if (!class_exists($class, false)) {
-            if (!$this->_autoload($fqn)) {
+            if (!self::autoload($this, $fqn, $path, $ignorePkg)) {
                 $class = false;
             }
         }
@@ -737,10 +773,14 @@ class xPDO {
      * new object could not be instantiated.
      */
     public function newObject($className, $fields= array ()) {
-        $instance= new $className($this);
-        if ($instance) {
-            if (is_array($fields) && !empty ($fields)) {
-                $instance->fromArray($fields);
+        $class= $this->loadClass($className);
+        if ($class) {
+            $class .= "_{$this->config['dbtype']}";
+            $instance= new $class($this);
+            if ($instance) {
+                if (is_array($fields) && !empty ($fields)) {
+                    $instance->fromArray($fields);
+                }
             }
         }
         return $instance;
@@ -1772,12 +1812,12 @@ class xPDO {
      * @return xPDOManager|null An xPDOManager instance for the xPDO connection, or null
      * if a manager class can not be instantiated.
      */
-    public function getManager() {
+    public function &getManager() {
         if ($this->manager === null || !$this->manager instanceof xPDOManager) {
-            $loaded= include_once(XPDO_CORE_PATH . 'om/' . $this->config['dbtype'] . '/xpdomanager.class.php');
+            $loaded= $this->loadClass('om.xPDOManager', XPDO_CORE_PATH);
             if ($loaded) {
                 $managerClass = 'xPDOManager_' . $this->config['dbtype'];
-                $this->manager= new $managerClass ($this);
+                $this->manager= new $managerClass($this);
             }
             if (!$this->manager) {
                 $this->log(xPDO::LOG_LEVEL_ERROR, "Could not load xPDOManager class.");
@@ -1796,10 +1836,9 @@ class xPDO {
      */
     public function getDriver() {
         if ($this->driver === null || !$this->driver instanceof xPDODriver) {
-            $loaded= include_once(XPDO_CORE_PATH . 'om/' . $this->config['dbtype'] . '/xpdodriver.class.php');
-            if ($loaded) {
-                $driverClass = 'xPDODriver_' . $this->config['dbtype'];
-                $this->driver= new $driverClass ($this);
+            if ($class = $this->loadClass('xPDODriver', '', false, true)) {
+                $driverClass = $class . '_' . $this->config['dbtype'];
+                $this->driver= new $driverClass($this);
             }
             if (!$this->driver) {
                 $this->log(xPDO::LOG_LEVEL_ERROR, "Could not load xPDODriver class for the {$this->config['dbtype']} PDO driver. " . print_r($this->config, true));
@@ -1834,8 +1873,8 @@ class xPDO {
      *      derivatives in declared packages.
      * @return xPDOCacheManager The xPDOCacheManager for this xPDO instance.
      */
-    public function getCacheManager($class= 'cache.xPDOCacheManager', $options = array()) {
-        $actualClass = $this->loadClass($class, '', false, true);
+    public function getCacheManager($class= 'cache.xPDOCacheManager', $options = array('path' => XPDO_CORE_PATH, 'ignorePkg' => true)) {
+        $actualClass = $this->loadClass($class, $options['path'], $options['ignorePkg'], true);
         if ($this->cacheManager === null || !is_object($this->cacheManager) || !($this->cacheManager instanceof $actualClass)) {
             if ($this->cacheManager= new $actualClass($this, $options)) {
                     $this->_cacheEnabled= true;

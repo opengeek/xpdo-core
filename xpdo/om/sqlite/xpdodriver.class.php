@@ -26,11 +26,6 @@
  */
 
 /**
- * Include the parent {@link xPDODriver} class.
- */
-require_once (dirname(dirname(__FILE__)) . '/xpdodriver.class.php');
-
-/**
  * Provides sqlite driver abstraction for an xPDO instance.
  *
  * This is baseline metadata and methods used throughout the framework.  xPDODriver 

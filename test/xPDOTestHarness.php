@@ -75,7 +75,8 @@ class xPDOTestHarness extends PHPUnit_Framework_TestSuite {
     public static function &getInstance($new = false) {
         if ($new || !is_object(xPDOTestHarness::$xpdo)) {
 	        $driver= xPDOTestHarness::$properties['xpdo_driver'];
-	        $xpdo= xPDO::getInstance(null, xPDOTestHarness::$properties["{$driver}_array_options"]);
+            $id = $new ? null : 'xpdo';
+	        $xpdo= xPDO::getInstance($id, xPDOTestHarness::$properties["{$driver}_array_options"]);
 	        if (is_object($xpdo)) {
 		        $logLevel = array_key_exists('logLevel', xPDOTestHarness::$properties) ? xPDOTestHarness::$properties['logLevel'] : xPDO::LOG_LEVEL_WARN;
 		        $logTarget = array_key_exists('logTarget', xPDOTestHarness::$properties) ? xPDOTestHarness::$properties['logTarget'] : (XPDO_CLI_MODE ? 'ECHO' : 'HTML');

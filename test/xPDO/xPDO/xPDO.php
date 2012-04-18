@@ -228,25 +228,25 @@ class xPDOTest extends xPDOTestCase {
     	$fields = array('id', 'first_name', 'last_name', 'middle_name', 'date_modified', 'dob', 'gender', 'blood_type', 'username', 'password', 'security_level');
         $correct = implode(', ', array_map(array($this->xpdo, 'escape'), $fields));
         $columns = $this->xpdo->getSelectColumns('Person');
-        $this->assertEquals($columns,$correct);
+        $this->assertEquals($correct, $columns);
 
         $correct = implode(', ', array_map(array($this, 'prefixWithEscapedPersonAlias'), $fields));
         $columns = $this->xpdo->getSelectColumns('Person','Person');
-        $this->assertEquals($columns,$correct);
+        $this->assertEquals($correct, $columns);
 
         $correct = implode(', ', array_map(array($this, 'postfixWithEscapedTestAlias'), $fields));
         $columns = $this->xpdo->getSelectColumns('Person','Person','test_');
-        $this->assertEquals($columns,$correct);
+        $this->assertEquals($correct, $columns);
 
         $includeColumns = array('id','last_name','dob');
         $correct = implode(', ', array_map(array($this->xpdo, 'escape'), $includeColumns));
         $columns = $this->xpdo->getSelectColumns('Person','','',$includeColumns);
-        $this->assertEquals($columns,$correct);
+        $this->assertEquals($correct, $columns);
         
         $excludeColumns = array('first_name','middle_name','dob','gender','security_level','blood_type');
         $correct = implode(', ', array_map(array($this->xpdo, 'escape'), array('id', 'last_name', 'date_modified', 'username', 'password')));
         $columns = $this->xpdo->getSelectColumns('Person','','',$excludeColumns,true);
-        $this->assertEquals($columns,$correct);
+        $this->assertEquals($correct, $columns);
     }
     private function prefixWithEscapedPersonAlias($string) {
     	return $this->xpdo->escape('Person') . '.' . $this->xpdo->escape($string);
@@ -286,6 +286,7 @@ class xPDOTest extends xPDOTestCase {
      */
     public function testGetTableMeta($class,$correctMeta = null) {
     	if (!empty(xPDOTestHarness::$debug)) print "\n" . __METHOD__ . " = ";
+        if ($this->xpdo->getOption('dbtype') !== 'mysql') $correctMeta = null;
         $tableMeta = $this->xpdo->getTableMeta($class);
         $this->assertEquals($correctMeta,$tableMeta);
     }
@@ -295,7 +296,7 @@ class xPDOTest extends xPDOTestCase {
      */
     public function providerGetTableMeta() {
         return array(
-            array('Person',null),
+            array('Person',array('engine' => 'MyISAM')),
         );
     }
 

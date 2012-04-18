@@ -26,11 +26,6 @@
  */
 
 /**
- * Include the parent {@link xPDOManager} class.
- */
-require_once (dirname(dirname(__FILE__)) . '/xpdomanager.class.php');
-
-/**
  * Provides sqlsrv data source management for an xPDO instance.
  *
  * These are utility functions that only need to be loaded under special
