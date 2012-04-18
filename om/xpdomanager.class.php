@@ -56,7 +56,7 @@ abstract class xPDOManager {
     /**
      * Get a xPDOManager instance.
      *
-     * @param object $xpdo A reference to a specific modDataSource instance.
+     * @param xPDO $xpdo A reference to a specific modDataSource instance.
      */
     public function __construct(& $xpdo) {
         if ($xpdo !== null && $xpdo instanceof xPDO) {
@@ -189,10 +189,10 @@ abstract class xPDOManager {
      */
     public function getGenerator() {
         if ($this->generator === null || !$this->generator instanceof xPDOGenerator) {
-            $loaded= include_once(XPDO_CORE_PATH . 'om/' . $this->xpdo->config['dbtype'] . '/xpdogenerator.class.php');
-            if ($loaded) {
-                $generatorClass = 'xPDOGenerator_' . $this->xpdo->config['dbtype'];
-                $this->generator= new $generatorClass ($this);
+            $class = $this->xpdo->loadClass('xPDOGenerator', '', false, true);
+            if ($class) {
+                $generatorClass = $class . '_' . $this->xpdo->config['dbtype'];
+                $this->generator= new $generatorClass($this);
             }
             if ($this->generator === null || !$this->generator instanceof xPDOGenerator) {
                 $this->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not load xPDOGenerator [{$generatorClass}] class.");

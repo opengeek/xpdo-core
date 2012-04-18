@@ -713,7 +713,6 @@ EOD;
         if ($this->platformTemplate) return $this->platformTemplate;
         $template= <<<EOD
 <?php
-require_once (dirname(dirname(__FILE__)) . '/[+class-lowercase+].class.php');
 class [+class+]_$platform extends [+class+] {}
 EOD;
         return $template;

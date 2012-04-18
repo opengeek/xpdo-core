@@ -19,22 +19,17 @@
  */
 
 /**
- * Contains a derivative of the xPDOObject class for MySQL.
- *
- * This file contains the base persistent object classes for MySQL, which your
- * user-defined classes will extend when implementing an xPDO object model
- * targeted at the MySQL platform.
+ * Defines an xPDOObject derivative defining a native integer primary key.
  *
  * @package xpdo
  * @subpackage om.mysql
  */
 
 /**
- * Implements extensions to the base xPDOObject class for MySQL.
+ * Extend to define a class with a native integer primary key field named id.
  *
- * {@inheritdoc}
- *
+ * @see xpdo/om/mysql/xpdosimpleobject.map.inc.php
  * @package xpdo
- * @subpackage om.mysql
+ * @subpackage om
  */
-abstract class xPDOObject_mysql extends xPDOObject {}
+abstract class xPDOSimpleObject extends xPDOObject {}
