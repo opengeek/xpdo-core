@@ -300,19 +300,19 @@ class xPDO {
         $pieces = explode('/', $className);
         $classFile = array_pop($pieces);
         $driverClassPos = strpos($classFile, "_{$instance->getOption('dbtype')}");
-        $driverClass = $classFile;
         if ($driverClassPos > 0) {
             $classFile = substr($classFile, 0, $driverClassPos);
         }
-        $classPath = !empty($pieces) ? implode('/', $pieces) . '/' : '';
         if (isset($instance->_classes[$classFile]) && isset($instance->packages[$instance->_classes[$classFile]])) {
             $pkgName = strtr($instance->_classes[$classFile], $pathSeparators);
             $pkgMeta = $instance->packages[$instance->_classes[$classFile]];
-            $isSubPkg = strpos($instance->_classes[$classFile], '.') !== false ? true : false;
-            if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . '/' . ($isSubPkg ? '' : $classPath) . strtolower($classFile) . '.class.php') {
-                if (@include $pkgMeta['path'] . $pkgName . '/' . ($isSubPkg ? '' : $classPath) . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
+            $pkgPieces = self::_resolveClassPath(explode('/', $pkgName), $pieces);
+            $classPath = !empty($pkgPieces) ? implode('/', $pkgPieces) : '';
+            if (!empty($classPath)) $classPath .= '/';
+            if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . '/' . $classPath . strtolower($classFile) . '.class.php') {
+                if (@include $pkgMeta['path'] . $pkgName . '/' . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
                     $xpdo_meta_map= & $instance->map;
-                    if (!@include $pkgMeta['path'] . $pkgName . '/' . ($isSubPkg ? '' : $classPath) . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
+                    if (!@include $pkgMeta['path'] . $pkgName . '/' . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
                         $instance->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
                     } else {
                         if (!isset($xpdo_meta_map[$classFile]['fieldAliases'])) {
@@ -325,6 +325,8 @@ class xPDO {
             }
         } else {
             if (!empty($path)) {
+                $classPath = !empty($pieces) ? implode('/', $pieces) : '';
+                if (!empty($classPath)) $classPath .= '/';
                 if ($driverClassPos > 0 || @include $path . $classPath . strtolower($classFile) . '.class.php') {
                     if (file_exists($path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
                         @include $path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
@@ -334,10 +336,11 @@ class xPDO {
             }
             if ($ignorePkg !== true) {
                 foreach ($instance->packages as $pkgName => $pkgMeta) {
-                    if (!empty($pkgName)) {
-                        $pkgName = strtr($pkgName, $pathSeparators);
-                        $pkgName .= '/';
-                    }
+                    if (!empty($pkgName)) $pkgName = strtr($pkgName, $pathSeparators);
+                    $pkgPieces = self::_resolveClassPath(explode('/', $pkgName), $pieces);
+                    if (!empty($pkgName)) $pkgName .= '/';
+                    $classPath = !empty($pkgPieces) ? implode('/', $pkgPieces) : '';
+                    if (!empty($classPath)) $classPath .= '/';
                     if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . $classPath . strtolower($classFile) . '.class.php') {
                         if (file_exists($pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
                             @include $pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
@@ -348,6 +351,16 @@ class xPDO {
             }
         }
         return false;
+    }
+
+    private static function _resolveClassPath($arr1, $arr2) {
+        if (!empty($arr1) && !empty($arr2)) {
+            foreach ($arr1 as $segment) {
+                if ($segment !== $arr2[0]) continue;
+                array_shift($arr2);
+            }
+        }
+        return $arr2;
     }
 
     /**
