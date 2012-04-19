@@ -229,7 +229,7 @@ class xPDOTransport {
         $vehicle = null;
         $objFile = $this->path . $this->signature . '/' . $objFile;
         $vehiclePackage = isset($options['vehicle_package']) ? $options['vehicle_package'] : '';
-        $vehiclePackagePath = isset($options['vehicle_package_path']) ? $options['vehicle_package_path'] : '';
+        $vehiclePackagePath = isset($options['vehicle_package_path']) ? $options['vehicle_package_path'] : XPDO_CORE_PATH;
         $vehicleClass = isset($options['vehicle_class']) ? $options['vehicle_class'] : '';
         if (empty($vehiclePackage)) $vehiclePackage = $options['vehicle_package'] = 'transport';
         if (empty($vehicleClass)) $vehicleClass = $options['vehicle_class'] = 'xPDOObjectVehicle';
@@ -332,7 +332,7 @@ class xPDOTransport {
         $added= false;
         if (!empty($artifact)) {
             $vehiclePackage = isset($attributes['vehicle_package']) ? $attributes['vehicle_package'] : '';
-            $vehiclePackagePath = isset($attributes['vehicle_package_path']) ? $attributes['vehicle_package_path'] : '';
+            $vehiclePackagePath = isset($attributes['vehicle_package_path']) ? $attributes['vehicle_package_path'] : XPDO_CORE_PATH;
             $vehicleClass = isset($attributes['vehicle_class']) ? $attributes['vehicle_class'] : '';
             if (empty($vehiclePackage)) $vehiclePackage = $attributes['vehicle_package'] = 'transport';
             if (empty($vehicleClass)) $vehicleClass = $attributes['vehicle_class'] = 'xPDOObjectVehicle';
