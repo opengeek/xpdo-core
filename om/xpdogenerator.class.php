@@ -190,9 +190,13 @@ abstract class xPDOGenerator {
      * @param string $outputDir The directory in which to generate the class and
      * map files into.
      * @param boolean $compile Create compiled copies of the classes and maps from the schema.
+     * @param boolean $regenClasses Indicates if existing class files should be overwritten:
+     *          0|false == do not regenerate
+     *          1|true == regenerate all class files
+     *          2 == regenerate platform class files only
      * @return boolean True on success, false on failure.
      */
-    public function parseSchema($schemaFile, $outputDir= '', $compile= false) {
+    public function parseSchema($schemaFile, $outputDir= '', $compile= false, $regenClasses= false) {
         $this->schemaFile= $schemaFile;
         $this->classTemplate= $this->getClassTemplate();
         if (!is_file($schemaFile)) {
@@ -460,32 +464,35 @@ abstract class xPDOGenerator {
     /**
      * Write the generated class files to the specified path.
      *
-     * @access public
-     * @param string $path An absolute path to write the generated class files
-     * to.
+     * @param string $path An absolute path to write the generated class files to.
+     * @param int|bool $regen Indicates if existing class files should be overwritten:
+     *          0|false == do not regenerate
+     *          1|true == regenerate all class files
+     *          2 == regenerate platform class files only
      */
-    public function outputClasses($path) {
+    public function outputClasses($path, $regen = false) {
+        if (strrpos($path, '/') !== strlen($path) - 1) $path .= '/';
+        if (!$this->manager->xpdo->getCacheManager()) {
+            $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not get xPDOCacheManager");
+            return false;
+        }
         $newClassGeneration= false;
         $newPlatformGeneration= false;
         $platform= $this->model['platform'];
         if (!is_dir($path)) {
             $newClassGeneration= true;
-            if ($this->manager->xpdo->getCacheManager()) {
-                if (!$this->manager->xpdo->cacheManager->writeTree($path)) {
-                    $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not create model directory at {$path}");
-                    return false;
-                }
+            if (!$this->manager->xpdo->cacheManager->writeTree($path)) {
+                $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not create model directory at {$path}");
+                return false;
             }
         }
         $ppath= $path;
         $ppath .= $platform;
         if (!is_dir($ppath)) {
             $newPlatformGeneration= true;
-            if ($this->manager->xpdo->getCacheManager()) {
-                if (!$this->manager->xpdo->cacheManager->writeTree($ppath)) {
-                    $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not create platform subdirectory {$ppath}");
-                    return false;
-                }
+            if (!$this->manager->xpdo->cacheManager->writeTree($ppath)) {
+                $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not create platform subdirectory {$ppath}");
+                return false;
             }
         }
         $model= $this->model;
@@ -509,51 +516,54 @@ abstract class xPDOGenerator {
         }
         foreach ($this->classes as $className => $classDef) {
             $newClass= false;
-            $classDef['class']= $className;
-            $classDef['class-lowercase']= strtolower($className);
+            $subDirPos = strrpos($className, '.');
+            $isSubDir = $subDirPos > 0;
+            $classPath = '';
+            $classFile = $className;
+            if ($isSubDir) {
+                $pieces = explode('.', $className);
+                $classFile = array_pop($pieces);
+                $classPath = !empty($pieces) ? implode('/', $pieces) : '';
+                if (!empty($classPath)) $classPath .= '/';
+            }
+            $classDef['class']= $classFile;
+            $classDef['class-lowercase']= strtolower($classFile);
             $classDef= array_merge($model, $classDef);
             $replaceVars= array ();
             foreach ($classDef as $varKey => $varValue) {
                 if (is_scalar($varValue)) $replaceVars["[+{$varKey}+]"]= $varValue;
             }
             $fileContent= str_replace(array_keys($replaceVars), array_values($replaceVars), $this->classTemplate);
-            if (is_dir($path)) {
-                $fileName= $path . strtolower($className) . '.class.php';
-                if (!file_exists($fileName)) {
-                    if ($file= @ fopen($fileName, 'wb')) {
-                        if (!fwrite($file, $fileContent)) {
-                            $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not write to file: {$fileName}");
-                        }
-                        $newClass= true;
-                        @fclose($file);
+            if (is_dir($path . $classPath) || $this->manager->xpdo->cacheManager->writeTree($path . $classPath)) {
+                $fileName= $path . $classPath . strtolower($classFile) . '.class.php';
+                if (!file_exists($fileName) || $regen == true) {
+                    if (!$this->manager->xpdo->cacheManager->writeFile($fileName, $fileContent)) {
+                        $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not write to file: {$fileName}");
                     } else {
-                        $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not open or create file: {$fileName}");
+                        $newClass= true;
                     }
                 } else {
                     $newClass= false;
-                    $this->manager->xpdo->log(xPDO::LOG_LEVEL_INFO, "Skipping {$fileName}; file already exists.\nMove existing class files to regenerate them.");
+                    $this->manager->xpdo->log(xPDO::LOG_LEVEL_INFO, "Skipping {$fileName}; file already exists.\nMove existing class files or pass regen > 1 to regenerate them.");
                 }
             } else {
-                $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not open or create dir: {$path}");
+                $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not open or create dir: {$path}{$classPath}");
             }
             $fileContent= str_replace(array_keys($replaceVars), array_values($replaceVars), $this->getClassPlatformTemplate($platform));
-            if (is_dir($ppath)) {
-                $fileName= $ppath . '/' . strtolower($className) . '.class.php';
-                if (!file_exists($fileName)) {
-                    if ($file= @ fopen($fileName, 'wb')) {
-                        if (!fwrite($file, $fileContent)) {
-                            $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not write to file: {$fileName}");
-                        }
-                        @fclose($file);
-                    } else {
-                        $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not open or create file: {$fileName}");
+            $ppath = $path . $classPath . $platform . '/';
+            $newPlatformGeneration = is_dir($ppath);
+            if ($newPlatformGeneration || $this->manager->xpdo->cacheManager->writeTree($ppath)) {
+                $fileName= $ppath . strtolower($classFile) . '.class.php';
+                if (!file_exists($fileName) || $regen > 0) {
+                    if (!$this->manager->xpdo->cacheManager->writeFile($fileName, $fileContent)) {
+                        $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not write to file: {$fileName}");
                     }
                 } else {
                     $this->manager->xpdo->log(xPDO::LOG_LEVEL_INFO, "Skipping {$fileName}; file already exists.\nMove existing class files to regenerate them.");
-                    if ($newClassGeneration || $newClass) $this->manager->xpdo->log(xPDO::LOG_LEVEL_WARN, "IMPORTANT: {$fileName} already exists but you appear to have generated classes with an older xPDO version.  You need to edit your class definition in this file to extend {$className} rather than {$classDef['extends']}.");
+                    if ($newClassGeneration || $newClass) $this->manager->xpdo->log(xPDO::LOG_LEVEL_WARN, "IMPORTANT: {$fileName} already exists but you appear to have generated classes with an older xPDO version.  You may need to edit your class definition in this file to extend {$className} rather than {$classDef['extends']}.");
                 }
             } else {
-                $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not open or create dir: {$path}");
+                $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not open or create dir: {$ppath}");
             }
         }
     }
@@ -565,12 +575,14 @@ abstract class xPDOGenerator {
      * @param string $path An absolute path to write the generated maps to.
      */
     public function outputMaps($path) {
-        if (!is_dir($path)) {
-            mkdir($path, 0777);
+        if (strrpos($path, '/') !== strlen($path) - 1) $path .= '/';
+        if (!$this->manager->xpdo->getCacheManager()) {
+            $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not get xPDOCacheManager");
+            return false;
         }
-        $path .= $this->model['platform'];
+        $platform= $this->model['platform'];
         if (!is_dir($path)) {
-            mkdir($path, 0777);
+            $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not find model directory at {$path}");
         }
         $model= $this->model;
         if (isset($this->model['phpdoc-package'])) {
@@ -592,15 +604,24 @@ abstract class xPDOGenerator {
             $model['phpdoc-subpackage']= '@subpackage ' . $subpackage;
         }
         foreach ($this->map as $className => $map) {
-            $lcClassName= strtolower($className);
-            $fileName= $path . '/' . strtolower($className) . '.map.inc.php';
+            $subDirPos = strrpos($className, '.');
+            $isSubDir = $subDirPos > 0;
+            $classPath = '';
+            $classFile = $className;
+            if ($isSubDir) {
+                $pieces = explode('.', $className);
+                $classFile = array_pop($pieces);
+                $classPath = !empty($pieces) ? implode('/', $pieces) : '';
+                if (!empty($classPath)) $classPath .= '/';
+            }
+            $fileName= $path . $classPath . $platform . '/' . strtolower($classFile) . '.map.inc.php';
             $vars= array_merge($model, $map);
             $replaceVars= array ();
             foreach ($vars as $varKey => $varValue) {
                 if (is_scalar($varValue)) $replaceVars["[+{$varKey}+]"]= $varValue;
             }
             $fileContent= str_replace(array_keys($replaceVars), array_values($replaceVars), $this->getMapHeader());
-            $fileContent.= "\n\$xpdo_meta_map['$className']= " . var_export($map, true) . ";\n";
+            $fileContent.= "\n\$xpdo_meta_map['{$classFile}']= " . var_export($map, true) . ";\n";
             $fileContent.= str_replace(array_keys($replaceVars), array_values($replaceVars), $this->getMapFooter());
             if (is_dir($path)) {
                 if ($file= @ fopen($fileName, 'wb')) {
@@ -624,13 +645,10 @@ abstract class xPDOGenerator {
      * @return bool
      */
     public function outputMeta($path) {
-        if (!is_dir($path)) {
-            if ($this->manager->xpdo->getCacheManager()) {
-                if (!$this->manager->xpdo->cacheManager->writeTree($path)) {
-                    $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not create model directory at {$path}");
-                    return false;
-                }
-            }
+        if (strrpos($path, '/') !== strlen($path) - 1) $path .= '/';
+        if (!$this->manager->xpdo->getCacheManager()) {
+            $this->manager->xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not get xPDOCacheManager");
+            return false;
         }
         $placeholders = array();
         
@@ -656,7 +674,6 @@ abstract class xPDOGenerator {
         $placeholders = array_merge($placeholders,$model);
         
         $classMap = array();
-//        $skipClasses = array('xPDOObject','xPDOSimpleObject');
         foreach ($this->classes as $className => $meta) {
             if (!isset($meta['extends'])) {
                 $meta['extends'] = 'xPDOObject';
@@ -666,16 +683,14 @@ abstract class xPDOGenerator {
             }
             $classMap[$meta['extends']][] = $className;
         }
-        if ($this->manager->xpdo->getCacheManager()) {
-            $placeholders['map'] = var_export($classMap,true);
-            $replaceVars = array();
-            foreach ($placeholders as $varKey => $varValue) {
-                if (is_scalar($varValue)) $replaceVars["[+{$varKey}+]"]= $varValue;
-            }
-            $fileContent= str_replace(array_keys($replaceVars), array_values($replaceVars), $this->getMetaTemplate());
-            $this->manager->xpdo->cacheManager->writeFile("{$path}/metadata.{$model['platform']}.php",$fileContent);
+        $placeholders['map'] = var_export($classMap, true);
+        $replaceVars = array();
+        foreach ($placeholders as $varKey => $varValue) {
+            if (is_scalar($varValue)) $replaceVars["[+{$varKey}+]"]= $varValue;
         }
-        return true;
+        $fileContent= str_replace(array_keys($replaceVars), array_values($replaceVars), $this->getMetaTemplate());
+        $written = $this->manager->xpdo->cacheManager->writeFile("{$path}metadata.{$model['platform']}.php", $fileContent);
+        return $written;
     }
 
     /**

@@ -296,16 +296,18 @@ class xPDO {
 
     protected static function autoload(xPDO &$instance, $className, $path = '', $ignorePkg = false) {
         $pathSeparators = array('\\' => '/', '.' => '/');
-        $className = ltrim(strtr($className, $pathSeparators), '/');
-        $pieces = explode('/', $className);
+        $pieces = explode('/', ltrim(strtr($className, $pathSeparators), '/'));
         $classFile = array_pop($pieces);
         $driverClassPos = strpos($classFile, "_{$instance->getOption('dbtype')}");
         if ($driverClassPos > 0) {
             $classFile = substr($classFile, 0, $driverClassPos);
         }
-        if (isset($instance->_classes[$classFile]) && isset($instance->packages[$instance->_classes[$classFile]])) {
-            $pkgName = strtr($instance->_classes[$classFile], $pathSeparators);
-            $pkgMeta = $instance->packages[$instance->_classes[$classFile]];
+        $by = isset($instance->_classes[$className])
+            ? 'className'
+            : (isset($instance->_classes[$classFile]) ? 'classFile' : null);
+        if ($by !== null && isset($instance->packages[$instance->_classes[$$by]])) {
+            $pkgName = strtr($instance->_classes[$$by], $pathSeparators);
+            $pkgMeta = $instance->packages[$instance->_classes[$$by]];
             $pkgPieces = self::_resolveClassPath(explode('/', $pkgName), $pieces);
             $classPath = !empty($pkgPieces) ? implode('/', $pkgPieces) : '';
             if (!empty($classPath)) $classPath .= '/';
