@@ -47,6 +47,8 @@ class xPDOTest extends xPDOTestCase {
             $result[] = $this->xpdo->manager->createObjectContainer('PersonPhone');
             $result[] = $this->xpdo->manager->createObjectContainer('BloodType');
             $result[] = $this->xpdo->manager->createObjectContainer('Item');
+            $result[] = $this->xpdo->manager->createObjectContainer('xPDOSample');
+            $result[] = $this->xpdo->manager->createObjectContainer('implicit.subpkg.xPDOSubSample');
         } catch (Exception $e) {
             $this->xpdo->log(xPDO::LOG_LEVEL_ERROR, $e->getMessage(), '', __METHOD__, __FILE__, __LINE__);
         }
@@ -149,12 +151,28 @@ class xPDOTest extends xPDOTestCase {
     
     /**
      * Verify xPDO::newQuery returns a xPDOQuery object
+     *
+     * @dataProvider providerNewQuery
      */
-    public function testNewQuery() {
+    public function testNewQuery($class) {
     	if (!empty(xPDOTestHarness::$debug)) print "\n" . __METHOD__ . " = ";
-        $criteria = $this->xpdo->newQuery('Person');
+        $criteria = $this->xpdo->newQuery($class);
         $success = is_object($criteria) && $criteria instanceof xPDOQuery;
-        $this->assertTrue($success);
+        $this->assertTrue($success, "Could not get xPDOQuery instance for class {$class}");
+    }
+    /**
+     * Data provider for testNewQuery
+     */
+    public function providerNewQuery() {
+        return array(
+            array('Person'),
+            array('Phone'),
+            array('PersonPhone'),
+            array('BloodType'),
+            array('Item'),
+            array('xPDOSample'),
+            array('implicit.subpkg.xPDOSubSample'),
+        );
     }
 
     /**
@@ -178,6 +196,10 @@ class xPDOTest extends xPDOTestCase {
         return array(
             array('Person',array('Person','xPDOSimpleObject','xPDOObject')),
             array('Person',array('xPDOSimpleObject','xPDOObject'),false),
+            array('xPDOSample',array('xPDOSample','xPDOSimpleObject','xPDOObject')),
+            array('xPDOSample',array('xPDOSimpleObject','xPDOObject'),false),
+            array('implicit.subpkg.xPDOSubSample',array('xPDOSubSample','xPDOSample','xPDOSimpleObject','xPDOObject')),
+            array('implicit.subpkg.xPDOSubSample',array('xPDOSample','xPDOSimpleObject','xPDOObject'),false),
         );
     }
 
@@ -205,6 +227,7 @@ class xPDOTest extends xPDOTestCase {
               1 => 'Phone',
               2 => 'xPDOSample',
               3 => 'Item',
+              4 => 'implicit.subpkg.xPDOSubSample'
             )),
             array('xPDOObject',array (
               0 => 'xPDOSimpleObject',
@@ -214,6 +237,7 @@ class xPDOTest extends xPDOTestCase {
               4 => 'Phone',
               5 => 'xPDOSample',
               6 => 'Item',
+              7 => 'implicit.subpkg.xPDOSubSample'
             )),
         );
     }
@@ -274,6 +298,8 @@ class xPDOTest extends xPDOTestCase {
     public function providerGetPackage() {
         return array(
             array('Person','sample'),
+            array('xPDOSample','sample'),
+            array('implicit.subpkg.xPDOSubSample','sample'),
         );
     }
 
@@ -321,18 +347,49 @@ class xPDOTest extends xPDOTestCase {
      */
     public function providerGetFields() {
         return array(
-            array('Person',array (
-              'id' => null,
-              'first_name' => '',
-              'last_name' => '',
-              'middle_name' => '',
-              'date_modified' => 'CURRENT_TIMESTAMP',
-              'dob' => '',
-              'gender' => '',
-              'blood_type' => null,
-              'username' => '',
-              'password' => '',
-              'security_level' => 1,
+            array('Person', array(
+                'id' => null,
+                'first_name' => '',
+                'last_name' => '',
+                'middle_name' => '',
+                'date_modified' => 'CURRENT_TIMESTAMP',
+                'dob' => '',
+                'gender' => '',
+                'blood_type' => null,
+                'username' => '',
+                'password' => '',
+                'security_level' => 1,
+            )),
+            array('xPDOSample', array(
+                'parent' => 0,
+                'unique_varchar' => NULL,
+                'varchar' => NULL,
+                'text' => NULL,
+                'timestamp' => 'CURRENT_TIMESTAMP',
+                'unix_timestamp' => 0,
+                'date_time' => NULL,
+                'date' => NULL,
+                'enum' => NULL,
+                'password' => NULL,
+                'integer' => NULL,
+                'float' => 1.0123,
+                'boolean' => NULL,
+            )),
+            array('implicit.subpkg.xPDOSubSample', array(
+                'parent' => 0,
+                'unique_varchar' => NULL,
+                'varchar' => NULL,
+                'text' => NULL,
+                'timestamp' => 'CURRENT_TIMESTAMP',
+                'unix_timestamp' => 0,
+                'date_time' => NULL,
+                'date' => NULL,
+                'enum' => NULL,
+                'password' => NULL,
+                'integer' => NULL,
+                'float' => 1.0123,
+                'boolean' => NULL,
+                'another_integer' => NULL
             )),
         );
     }
@@ -379,6 +436,8 @@ class xPDOTest extends xPDOTestCase {
             array('Person','id'),
             array('Phone','id'),
             array('PersonPhone',array('person' => 'person','phone' => 'phone')),
+            array('xPDOSample','id'),
+            array('implicit.subpkg.xPDOSubSample','id'),
         );
     }
 
@@ -403,6 +462,8 @@ class xPDOTest extends xPDOTestCase {
             array('Person','integer'),
             array('Phone','integer'),
             array('PersonPhone',array('person' => 'integer','phone' => 'integer')),
+            array('xPDOSample','integer'),
+            array('implicit.subpkg.xPDOSubSample','integer'),
         );
     }
 
@@ -525,6 +586,7 @@ class xPDOTest extends xPDOTestCase {
         try {
             $results[] = ($this->xpdo->call('Item', 'callTest') === 'Item_' . $this->xpdo->getOption('dbtype'));
             $results[] = ($this->xpdo->call('xPDOSample', 'callTest') === 'xPDOSample');
+            $results[] = ($this->xpdo->call('implicit.subpkg.xPDOSubSample', 'callTest') === 'xPDOSample');
             $results[] = ($this->xpdo->call('TransientDerivative', 'callTest', array(), true) === 'TransientDerivative');
             $results[] = ($this->xpdo->call('Transient', 'callTest', array(), true) === 'Transient');
         } catch (Exception $e) {
@@ -545,6 +607,8 @@ class xPDOTest extends xPDOTestCase {
             $result[] = $this->xpdo->manager->removeObjectContainer('PersonPhone');
             $result[] = $this->xpdo->manager->removeObjectContainer('BloodType');
             $result[] = $this->xpdo->manager->removeObjectContainer('Item');
+            $result[] = $this->xpdo->manager->removeObjectContainer('xPDOSample');
+            $result[] = $this->xpdo->manager->removeObjectContainer('implicit.subpkg.xPDOSubSample');
         } catch (Exception $e) {
             $this->xpdo->log(xPDO::LOG_LEVEL_ERROR, $e->getMessage(), '', __METHOD__, __FILE__, __LINE__);
         }

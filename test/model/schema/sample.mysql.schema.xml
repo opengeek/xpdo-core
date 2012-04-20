@@ -88,4 +88,7 @@
     <index name="color" primary="false" unique="false">
         <column key="color" length="" collation="A" null="false" />
     </index>
+    <object class="implicit.subpkg.xPDOSubSample" table="xpdosubsample" extends="xPDOSample">
+        <field key="another_integer" dbtype="int" precision="11" phptype="integer" null="false" />
+    </object>
 </model>
