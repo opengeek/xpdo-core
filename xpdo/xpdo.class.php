@@ -294,6 +294,16 @@ class xPDO {
         return self::$instances[$id];
     }
 
+    /**
+     * xPDO autoload implementation.
+     *
+     * @static
+     * @param xPDO &$instance A reference to an xPDO instance
+     * @param $className The class name to load, optionally prefixed by packages
+     * @param string $path A specific path to load the class from
+     * @param bool $ignorePkg Ignore packages when attempting to load the class
+     * @return bool Returns true if loaded, false otherwise
+     */
     protected static function autoload(xPDO &$instance, $className, $path = '', $ignorePkg = false) {
         $pathSeparators = array('\\' => '/', '.' => '/');
         $pieces = explode('/', ltrim(strtr($className, $pathSeparators), '/'));
@@ -355,6 +365,14 @@ class xPDO {
         return false;
     }
 
+    /**
+     * Resolve two paths when common relative parts are contained in both.
+     *
+     * @static
+     * @param $arr1 An array of path segments
+     * @param $arr2 Another array of path segments
+     * @return array An array of unique path segments between $arr1 and $arr2
+     */
     private static function _resolveClassPath($arr1, $arr2) {
         if (!empty($arr1) && !empty($arr2)) {
             foreach ($arr1 as $segment) {
