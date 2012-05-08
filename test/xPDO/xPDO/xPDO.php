@@ -339,7 +339,7 @@ class xPDOTest extends xPDOTestCase {
         $diff = array_diff($fields,$correctFields);
         $diff2 = array_diff($correctFields,$fields);
         $success = is_array($fields) && empty($diff) && empty($diff2);
-        $this->assertTrue($success);
+        $this->assertEquals($correctFields, $fields);
     }
     /**
      * Data provider for testGetFields
@@ -361,6 +361,7 @@ class xPDOTest extends xPDOTestCase {
                 'security_level' => 1,
             )),
             array('xPDOSample', array(
+                'id' => NULL,
                 'parent' => 0,
                 'unique_varchar' => NULL,
                 'varchar' => NULL,
@@ -372,10 +373,11 @@ class xPDOTest extends xPDOTestCase {
                 'enum' => NULL,
                 'password' => NULL,
                 'integer' => NULL,
-                'float' => 1.0123,
+                'float' => 1.01230,
                 'boolean' => NULL,
             )),
             array('implicit.subpkg.xPDOSubSample', array(
+                'id' => NULL,
                 'parent' => 0,
                 'unique_varchar' => NULL,
                 'varchar' => NULL,
@@ -387,7 +389,7 @@ class xPDOTest extends xPDOTestCase {
                 'enum' => NULL,
                 'password' => NULL,
                 'integer' => NULL,
-                'float' => 1.0123,
+                'float' => 1.01230,
                 'boolean' => NULL,
                 'another_integer' => NULL
             )),
