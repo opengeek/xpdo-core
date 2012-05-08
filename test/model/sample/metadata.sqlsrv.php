@@ -13,4 +13,8 @@ $xpdo_meta_map = array (
     0 => 'PersonPhone',
     1 => 'BloodType',
   ),
+  'xPDOSample' => 
+  array (
+    0 => 'implicit.subpkg.xPDOSubSample',
+  ),
 );
