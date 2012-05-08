@@ -459,6 +459,9 @@ class xPDO {
         }
     }
 
+    /**
+     * Destroy the instance explicitly; usually called by __destruct().
+     */
     public function destroy() {
         spl_autoload_unregister(array(&$this, '_autoload'));
     }
@@ -467,6 +470,14 @@ class xPDO {
         $this->destroy();
     }
 
+    /**
+     * Call the static autoload method explicitly.
+     *
+     * @param $className The name of the class to load.
+     * @param string $path Provide an optional explicit path to load the class from.
+     * @param bool $ignorePkg Set to TRUE if packages should be ignored.
+     * @return bool TRUE if the class was successfully loaded, otherwise FALSE.
+     */
     protected function _autoload($className, $path = '', $ignorePkg = false) {
         return self::autoload($this, $className, $path, $ignorePkg);
     }
