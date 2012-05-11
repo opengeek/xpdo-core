@@ -235,7 +235,7 @@ class xPDOTransport {
         if (empty($vehicleClass)) $vehicleClass = $options['vehicle_class'] = 'xPDOObjectVehicle';
         if ($className = $this->xpdo->loadClass("{$vehiclePackage}.{$vehicleClass}", $vehiclePackagePath, true, true)) {
             $vehicle = new $className();
-        if (file_exists($objFile)) {
+        if (is_readable($objFile)) {
                 $payload = include ($objFile);
                 if ($payload) {
                     $vehicle->payload = $payload;
@@ -523,7 +523,7 @@ class xPDOTransport {
     public static function retrieve(& $xpdo, $source, $target, $state= xPDOTransport::STATE_PACKED) {
         $instance= null;
         $signature = basename($source, '.transport.zip');
-        if (file_exists($source)) {
+        if (is_readable($source)) {
             if (is_writable($target)) {
                 $manifest = xPDOTransport :: unpack($xpdo, $source, $target, $state);
                 if ($manifest) {
@@ -592,10 +592,10 @@ class xPDOTransport {
         }
         if ($resources) {
             $manifestFilename = $to . basename($from, '.transport.zip') . '/manifest.php';
-            if (file_exists($manifestFilename)) {
+            if (is_readable($manifestFilename)) {
                 $manifest= @include ($manifestFilename);
             } else {
-                $xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not find package manifest at {$manifestFilename}");
+                $xpdo->log(xPDO::LOG_LEVEL_ERROR, "Could not load package manifest from {$manifestFilename}");
             }
         }
         return $manifest;

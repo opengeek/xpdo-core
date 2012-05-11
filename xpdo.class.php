@@ -340,7 +340,7 @@ class xPDO {
                 $classPath = !empty($pieces) ? implode('/', $pieces) : '';
                 if (!empty($classPath)) $classPath .= '/';
                 if ($driverClassPos > 0 || @include $path . $classPath . strtolower($classFile) . '.class.php') {
-                    if (file_exists($path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
+                    if (is_readable($path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
                         @include $path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
                     }
                     return true;
@@ -354,7 +354,7 @@ class xPDO {
                     $classPath = !empty($pkgPieces) ? implode('/', $pkgPieces) : '';
                     if (!empty($classPath)) $classPath .= '/';
                     if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . $classPath . strtolower($classFile) . '.class.php') {
-                        if (file_exists($pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
+                        if (is_readable($pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
                             @include $pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
                         }
                         return true;
@@ -635,7 +635,7 @@ class xPDO {
         if (is_string($pkg) && !empty($pkg)) {
             $pkgPath = str_replace('.', '/', $pkg);
             $mapFile = $path . $pkgPath . '/metadata.' . $this->config['dbtype'] . '.php';
-            if (file_exists($mapFile)) {
+            if (is_readable($mapFile)) {
                 $xpdo_meta_map = '';
                 include $mapFile;
                 if (!empty($xpdo_meta_map)) {
@@ -3068,10 +3068,10 @@ class xPDOConnection {
             $connected= (is_object($this->pdo));
             if ($connected) {
                 $connectFile = XPDO_CORE_PATH . 'om/' . $this->config['dbtype'] . '/connect.inc.php';
-                if (!empty($this->config['connect_file']) && file_exists($this->config['connect_file'])) {
+                if (!empty($this->config['connect_file']) && is_readable($this->config['connect_file'])) {
                     $connectFile = $this->config['connect_file'];
                 }
-                if (file_exists($connectFile)) include ($connectFile);
+                if (is_readable($connectFile)) include ($connectFile);
             }
             if (!$connected) {
                 $this->pdo= null;
