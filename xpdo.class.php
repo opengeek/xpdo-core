@@ -302,9 +302,10 @@ class xPDO {
      * @param $className The class name to load, optionally prefixed by packages
      * @param string $path A specific path to load the class from
      * @param bool $ignorePkg Ignore packages when attempting to load the class
+     * @param bool $transient Indicates if the class is transient (not a table class)
      * @return bool Returns true if loaded, false otherwise
      */
-    protected static function autoload(xPDO &$instance, $className, $path = '', $ignorePkg = false) {
+    protected static function autoload(xPDO &$instance, $className, $path = '', $ignorePkg = false, $transient = false) {
         $pathSeparators = array('\\' => '/', '.' => '/');
         $pieces = explode('/', ltrim(strtr($className, $pathSeparators), '/'));
         $classFile = array_pop($pieces);
@@ -323,16 +324,18 @@ class xPDO {
             if (!empty($classPath)) $classPath .= '/';
             if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . '/' . $classPath . strtolower($classFile) . '.class.php') {
                 if (@include $pkgMeta['path'] . $pkgName . '/' . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
-                    $xpdo_meta_map= & $instance->map;
-                    if (!@include $pkgMeta['path'] . $pkgName . '/' . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
-                        $instance->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
-                    } else {
-                        if (!isset($xpdo_meta_map[$classFile]['fieldAliases'])) {
-                            $xpdo_meta_map[$classFile]['fieldAliases'] = array();
+                    if (!$transient) {
+                        $xpdo_meta_map= & $instance->map;
+                        if (!@include $pkgMeta['path'] . $pkgName . '/' . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
+                            $instance->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
+                        } else {
+                            if (!isset($xpdo_meta_map[$classFile]['fieldAliases'])) {
+                                $xpdo_meta_map[$classFile]['fieldAliases'] = array();
+                            }
+                            unset($xpdo_meta_map);
                         }
-                        unset($xpdo_meta_map);
-                        return true;
                     }
+                    return true;
                 }
             }
         } else {
@@ -341,9 +344,23 @@ class xPDO {
                 if (!empty($classPath)) $classPath .= '/';
                 if ($driverClassPos > 0 || @include $path . $classPath . strtolower($classFile) . '.class.php') {
                     if (is_readable($path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
-                        @include $path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
+                        if (@include $path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
+                            if (!$transient) {
+                                $xpdo_meta_map= & $instance->map;
+                                if (!@include $path . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
+                                    $instance->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
+                                } else {
+                                    if (!isset($xpdo_meta_map[$classFile]['fieldAliases'])) {
+                                        $xpdo_meta_map[$classFile]['fieldAliases'] = array();
+                                    }
+                                    unset($xpdo_meta_map);
+                                }
+                            }
+                            return true;
+                        }
+                    } elseif ($transient) {
+                        return true;
                     }
-                    return true;
                 }
             }
             if ($ignorePkg !== true) {
@@ -355,9 +372,21 @@ class xPDO {
                     if (!empty($classPath)) $classPath .= '/';
                     if ($driverClassPos > 0 || @include $pkgMeta['path'] . $pkgName . $classPath . strtolower($classFile) . '.class.php') {
                         if (is_readable($pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php')) {
-                            @include $pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php';
+                            if (@include $pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.class.php') {
+                                if (!$transient) {
+                                    $xpdo_meta_map= & $instance->map;
+                                    if (!@include $pkgMeta['path'] . $pkgName . $classPath . $instance->getOption('dbtype') . '/' . strtolower($classFile) . '.map.inc.php') {
+                                        $instance->log(xPDO::LOG_LEVEL_WARN, "Could not load metadata map for class {$className}");
+                                    } else {
+                                        if (!isset($xpdo_meta_map[$classFile]['fieldAliases'])) {
+                                            $xpdo_meta_map[$classFile]['fieldAliases'] = array();
+                                        }
+                                        unset($xpdo_meta_map);
+                                    }
+                                }
+                                return true;
+                            }
                         }
-                        return true;
                     }
                 }
             }
@@ -476,10 +505,11 @@ class xPDO {
      * @param $className The name of the class to load.
      * @param string $path Provide an optional explicit path to load the class from.
      * @param bool $ignorePkg Set to TRUE if packages should be ignored.
+     * @param bool $transient Set to TRUE the class is a transient, non-table class.
      * @return bool TRUE if the class was successfully loaded, otherwise FALSE.
      */
-    protected function _autoload($className, $path = '', $ignorePkg = false) {
-        return self::autoload($this, $className, $path, $ignorePkg);
+    protected function _autoload($className, $path = '', $ignorePkg = false, $transient = false) {
+        return self::autoload($this, $className, $path, $ignorePkg, $transient);
     }
 
     /**
@@ -716,7 +746,7 @@ class xPDO {
         if (!$transient && isset ($this->map[$class])) return $class;
         $classname = $class;
         if (!class_exists($class, false)) {
-            if (!self::autoload($this, $fqn, $path, $ignorePkg)) {
+            if (!self::autoload($this, $fqn, $path, $ignorePkg, $transient)) {
                 $class = false;
             }
         }
