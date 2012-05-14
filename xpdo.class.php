@@ -358,7 +358,7 @@ class xPDO {
                             }
                             return true;
                         }
-                    } elseif ($transient) {
+                    } elseif ($driverClassPos < 1 && $transient) {
                         return true;
                     }
                 }
@@ -386,6 +386,8 @@ class xPDO {
                                 }
                                 return true;
                             }
+                        } elseif ($driverClassPos < 1 && $transient) {
+                            return true;
                         }
                     }
                 }
