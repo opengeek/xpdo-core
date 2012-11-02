@@ -1,5 +1,13 @@
 <?php
-
+$pkg_meta_map = array (
+  'package' => 'sample.sti',
+  'baseClass' => 'xPDOObject',
+  'platform' => 'mysql',
+  'defaultEngine' => 'MyISAM',
+  'version' => '1.1',
+  'phpdoc-package' => '@package sample',
+  'phpdoc-subpackage' => '@subpackage sti.mysql',
+);
 $xpdo_meta_map = array (
   'xPDOSimpleObject' => 
   array (

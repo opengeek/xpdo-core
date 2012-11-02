@@ -1,7 +1,7 @@
 <?php
 $xpdo_meta_map['PersonPhone']= array (
   'package' => 'sample',
-  'version' => '1.1',
+  'version' => '1.2',
   'table' => 'person_phone',
   'extends' => 'xPDOObject',
   'fields' => 

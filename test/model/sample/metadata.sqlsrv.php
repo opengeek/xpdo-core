@@ -1,5 +1,12 @@
 <?php
-
+$pkg_meta_map = array (
+  'package' => 'sample',
+  'baseClass' => 'xPDOObject',
+  'platform' => 'sqlsrv',
+  'version' => '1.2',
+  'phpdoc-package' => '@package sample',
+  'phpdoc-subpackage' => '@subpackage sqlsrv',
+);
 $xpdo_meta_map = array (
   'xPDOSimpleObject' => 
   array (

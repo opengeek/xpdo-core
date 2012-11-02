@@ -1,7 +1,7 @@
 <?php
 $xpdo_meta_map['xPDOSubSample']= array (
-  'package' => 'sample',
-  'version' => '1.1',
+  'package' => 'sample.implicit.subpkg',
+  'version' => '1.2',
   'table' => 'xpdosubsample',
   'extends' => 'xPDOSample',
   'fields' => 

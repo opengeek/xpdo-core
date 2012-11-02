@@ -138,7 +138,7 @@ class xPDO {
     const LOG_LEVEL_INFO = 3;
     const LOG_LEVEL_DEBUG = 4;
 
-    const SCHEMA_VERSION = '1.1';
+    const SCHEMA_VERSION = '1.2';
 
     /**
      * @var PDO A reference to the PDO instance used by the current xPDOConnection.
@@ -670,9 +670,15 @@ class xPDO {
             $pkgPath = str_replace('.', '/', $pkg);
             $mapFile = $path . $pkgPath . '/metadata.' . $this->config['dbtype'] . '.php';
             if (is_readable($mapFile)) {
+                $pkg_meta_map = array();
                 $xpdo_meta_map = '';
                 include $mapFile;
-                if (!empty($xpdo_meta_map)) {
+                if (!empty($pkg_meta_map)) {
+                    $this->packages[$pkg]= array_merge($pkg_meta_map, $this->packages[$pkg]);
+                } else {
+                    $this->packages[$pkg]['version'] = '1.1';
+                }
+                if (!empty($xpdo_meta_map) && version_compare($this->packages[$pkg]['version'], '1.2', '<=')) {
                     foreach ($xpdo_meta_map as $className => $extends) {
                         if (!isset($this->classMap[$className])) {
                             $this->classMap[$className] = array();
@@ -851,6 +857,7 @@ class xPDO {
      * new object could not be instantiated.
      */
     public function newObject($className, $fields= array ()) {
+        $instance= null;
         $class= $this->loadClass($className);
         if ($class) {
             $class .= "_{$this->config['dbtype']}";
@@ -859,6 +866,8 @@ class xPDO {
                 if (is_array($fields) && !empty ($fields)) {
                     $instance->fromArray($fields);
                 }
+            } else {
+                $this->log(xPDO::LOG_LEVEL_ERROR, "Could not get new instance of class {$class} via {$className}", '', __METHOD__, __FILE__, __LINE__);
             }
         }
         return $instance;

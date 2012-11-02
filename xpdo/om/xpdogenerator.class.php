@@ -214,10 +214,15 @@ abstract class xPDOGenerator {
                 foreach ($this->schema->object as $object) {
                     /** @var SimpleXMLElement $object */
                     $class = (string) $object['class'];
+                    $package = $this->model['package'];
+                    $subPackage = '';
+                    if (strpos($class, '.') !== false) {
+                        $subPackage = '.' . substr($class, 0, strrpos($class, '.'));
+                    }
                     $extends = isset($object['extends']) ? (string) $object['extends'] : $this->model['baseClass'];
                     $this->classes[$class] = array('extends' => $extends);
                     $this->map[$class] = array(
-                        'package' => $this->model['package'],
+                        'package' => $package . $subPackage,
                         'version' => $this->model['version']
                     );
                     foreach ($object->attributes() as $objAttrKey => $objAttr) {
@@ -683,6 +688,7 @@ abstract class xPDOGenerator {
             }
             $classMap[$meta['extends']][] = $className;
         }
+        $placeholders['model'] = var_export($model, true);
         $placeholders['map'] = var_export($classMap, true);
         $replaceVars = array();
         foreach ($placeholders as $varKey => $varValue) {
@@ -769,7 +775,8 @@ EOD;
         if ($this->metaTemplate) return $this->metaTemplate;
         $tpl= <<<EOD
 <?php
-\n\$xpdo_meta_map = [+map+];
+\$pkg_meta_map = [+model+];
+\$xpdo_meta_map = [+map+];
 EOD;
         return $tpl;
     }

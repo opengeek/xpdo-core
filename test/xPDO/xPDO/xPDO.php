@@ -299,7 +299,7 @@ class xPDOTest extends xPDOTestCase {
         return array(
             array('Person','sample'),
             array('xPDOSample','sample'),
-            array('implicit.subpkg.xPDOSubSample','sample'),
+            array('implicit.subpkg.xPDOSubSample','sample.implicit.subpkg'),
         );
     }
 
