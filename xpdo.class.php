@@ -689,6 +689,15 @@ class xPDO {
                             foreach ($this->classMap[$className] as $class) {
                                 if (!isset($this->_classes[$class])) $this->_classes[$class] = $pkg;
                             }
+                            $classPos = strrpos($className, '.');
+                            if ($classPos > 0) {
+                                $actualClass = substr($className, $classPos + 1);
+                                $subPkg = substr($className, 0, $classPos);
+                                if (!isset($this->_classes[$actualClass])) $this->_classes[$actualClass] = $pkg . '.' . $subPkg;
+                                foreach ($this->classMap[$actualClass] as $class) {
+                                    if (!isset($this->_classes[$actualClass])) $this->_classes[$actualClass] = $pkg . '.' . $subPkg;
+                                }
+                            }
                         }
                     }
                     $set = true;
