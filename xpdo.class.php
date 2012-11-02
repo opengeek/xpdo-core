@@ -680,23 +680,30 @@ class xPDO {
                 }
                 if (!empty($xpdo_meta_map)) {
                     foreach ($xpdo_meta_map as $className => $extends) {
-                        if (!isset($this->classMap[$className])) {
-                            $this->classMap[$className] = array();
+                        $classPos = strrpos($className, '.');
+                        $actualClass = $className;
+                        $subPkg = '';
+                        if ($classPos > 0) {
+                            $actualClass = substr($className, $classPos + 1);
+                            $subPkg = substr($className, 0, $classPos);
                         }
-                        $this->classMap[$className] = array_unique(array_merge($this->classMap[$className],$extends));
+                        if (!isset($this->classMap[$actualClass])) {
+                            $this->classMap[$actualClass] = array();
+                        }
+                        $this->classMap[$actualClass] = array_unique(array_merge($this->classMap[$actualClass],$extends));
                         if (version_compare($this->packages[$pkg]['version'], '1.2', '>=')) {
+                            if (!empty($subPkg) && !isset($this->_classes[$actualClass])) $this->_classes[$actualClass] = $pkg . '.' . $subPkg;
                             if (!isset($this->_classes[$className])) $this->_classes[$className] = $pkg;
-                            foreach ($this->classMap[$className] as $class) {
-                                if (!isset($this->_classes[$class])) $this->_classes[$class] = $pkg;
-                            }
-                            $classPos = strrpos($className, '.');
-                            if ($classPos > 0) {
-                                $actualClass = substr($className, $classPos + 1);
-                                $subPkg = substr($className, 0, $classPos);
-                                if (!isset($this->_classes[$actualClass])) $this->_classes[$actualClass] = $pkg . '.' . $subPkg;
-                                foreach ($this->classMap[$actualClass] as $class) {
-                                    if (!isset($this->_classes[$actualClass])) $this->_classes[$actualClass] = $pkg . '.' . $subPkg;
+                            foreach ($this->classMap[$actualClass] as $fqn) {
+                                $pos = strrpos($fqn, '.');
+                                $class = $fqn;
+                                $classPkg = '';
+                                if ($pos > 0) {
+                                    $class = substr($fqn, $pos + 1);
+                                    $classPkg = substr($fqn, $pos);
                                 }
+                                if (!empty($classPkg) && !isset($this->_classes[$class])) $this->_classes[$class] = $pkg . '.' . $classPkg;
+                                if (!isset($this->_classes[$fqn])) $this->_classes[$fqn] = $pkg;
                             }
                         }
                     }
