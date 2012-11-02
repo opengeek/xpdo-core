@@ -678,15 +678,17 @@ class xPDO {
                 } else {
                     $this->packages[$pkg]['version'] = '1.1';
                 }
-                if (!empty($xpdo_meta_map) && version_compare($this->packages[$pkg]['version'], '1.2', '<=')) {
+                if (!empty($xpdo_meta_map)) {
                     foreach ($xpdo_meta_map as $className => $extends) {
                         if (!isset($this->classMap[$className])) {
                             $this->classMap[$className] = array();
                         }
                         $this->classMap[$className] = array_unique(array_merge($this->classMap[$className],$extends));
-                        if (!isset($this->_classes[$className])) $this->_classes[$className] = $pkg;
-                        foreach ($this->classMap[$className] as $class) {
-                            if (!isset($this->_classes[$class])) $this->_classes[$class] = $pkg;
+                        if (version_compare($this->packages[$pkg]['version'], '1.2', '>=')) {
+                            if (!isset($this->_classes[$className])) $this->_classes[$className] = $pkg;
+                            foreach ($this->classMap[$className] as $class) {
+                                if (!isset($this->_classes[$class])) $this->_classes[$class] = $pkg;
+                            }
                         }
                     }
                     $set = true;
@@ -919,7 +921,7 @@ class xPDO {
      * cache indefinitely.
      * @return object|null An instance of the class, or null if it could not be
      * instantiated.
-    */
+     */
     public function getObject($className, $criteria= null, $cacheFlag= true) {
         $instance= null;
         if ($criteria !== null) {
@@ -940,7 +942,7 @@ class xPDO {
      * is ignored for the collection and if cacheFlag === true, the objects will
      * live in cache until flushed by another process.
      * @return array|null An array of class instances retrieved.
-    */
+     */
     public function getCollection($className, $criteria= null, $cacheFlag= true) {
         return $this->call($className, 'loadCollection', array(& $this, $className, $criteria, $cacheFlag));
     }
@@ -1634,33 +1636,33 @@ class xPDO {
     public function getPK($className) {
         $pk= null;
         if (strcasecmp($className, 'xPDOObject') !== 0) {
-        if ($actualClassName= $this->loadClass($className)) {
-            if (isset ($this->map[$actualClassName]['fieldMeta'])) {
-                foreach ($this->map[$actualClassName]['fieldMeta'] as $k => $v) {
-                    if (isset ($v['index']) && isset ($v['phptype']) && $v['index'] == 'pk') {
-                        $pk[$k]= $k;
+            if ($actualClassName= $this->loadClass($className)) {
+                if (isset ($this->map[$actualClassName]['fieldMeta'])) {
+                    foreach ($this->map[$actualClassName]['fieldMeta'] as $k => $v) {
+                        if (isset ($v['index']) && isset ($v['phptype']) && $v['index'] == 'pk') {
+                            $pk[$k]= $k;
+                        }
                     }
                 }
-            }
-            if ($ancestry= $this->getAncestry($actualClassName)) {
-                foreach ($ancestry as $ancestor) {
-                    if ($ancestorClassName= $this->loadClass($ancestor)) {
-                        if (isset ($this->map[$ancestorClassName]['fieldMeta'])) {
-                            foreach ($this->map[$ancestorClassName]['fieldMeta'] as $k => $v) {
-                                if (isset ($v['index']) && isset ($v['phptype']) && $v['index'] == 'pk') {
-                                    $pk[$k]= $k;
+                if ($ancestry= $this->getAncestry($actualClassName)) {
+                    foreach ($ancestry as $ancestor) {
+                        if ($ancestorClassName= $this->loadClass($ancestor)) {
+                            if (isset ($this->map[$ancestorClassName]['fieldMeta'])) {
+                                foreach ($this->map[$ancestorClassName]['fieldMeta'] as $k => $v) {
+                                    if (isset ($v['index']) && isset ($v['phptype']) && $v['index'] == 'pk') {
+                                        $pk[$k]= $k;
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
                 if ($pk && count($pk) === 1) {
                     $pk= current($pk);
                 }
-        } else {
+            } else {
                 $this->log(xPDO::LOG_LEVEL_ERROR, "Could not load class {$className}");
-        }
+            }
         }
         return $pk;
     }
@@ -1964,7 +1966,7 @@ class xPDO {
         $actualClass = $this->loadClass($class, $options['path'], $options['ignorePkg'], true);
         if ($this->cacheManager === null || !is_object($this->cacheManager) || !($this->cacheManager instanceof $actualClass)) {
             if ($this->cacheManager= new $actualClass($this, $options)) {
-                    $this->_cacheEnabled= true;
+                $this->_cacheEnabled= true;
             }
         }
         return $this->cacheManager;
@@ -2454,10 +2456,10 @@ class xPDO {
                     if ($asArray) {
                         $json = new Services_JSON(SERVICES_JSON_LOOSE_TYPE);
                     } else {
-                    $json = new Services_JSON();
+                        $json = new Services_JSON();
                     }
                     $decoded= $json->decode($src);
-                    }
+                }
             } else {
                 $decoded= json_decode($src, $asArray);
             }
@@ -2617,7 +2619,7 @@ class xPDO {
      * @return float
      */
     public function getMicroTime() {
-       return microtime(true);
+        return microtime(true);
     }
 
     /**
@@ -2805,7 +2807,7 @@ class xPDOCriteria {
         if (is_string($sql) && !empty ($sql)) {
             $this->sql= $sql;
             if ($cacheFlag === false || $cacheFlag < 0) {
-            $this->stmt= $xpdo->prepare($sql);
+                $this->stmt= $xpdo->prepare($sql);
             }
             if (!empty ($bindings)) {
                 $this->bind($bindings, true, $cacheFlag);
