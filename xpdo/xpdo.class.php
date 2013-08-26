@@ -2584,35 +2584,44 @@ class xPDO {
         $split= array();
         $charPos = strpos($str, $char);
         if ($charPos !== false) {
-            if ($charPos === 0) {
-                $searchPos = 1;
-                $startPos = 1;
-            } else {
-                $searchPos = 0;
-                $startPos = 0;
-            }
-            $escOpen = false;
-            $strlen = strlen($str);
-            for ($i = $startPos; $i <= $strlen; $i++) {
-                if ($i == $strlen) {
-                    $tmp= trim(substr($str, $searchPos));
-                    if (!empty($tmp)) $split[]= $tmp;
-                    break;
+            $exit = strpos($str, $escToken);
+            if ($exit !== false) {
+                $tmpSplit = explode($char, $str);
+                $countItem = count($tmpSplit);
+                $flag = false;
+                for ($i = 0; $i < $countItem; $i++) {
+                    $countEsc = isset($tmpSplit[$i]) && substr_count($tmpSplit[$i], $escToken) % 2 == 1;
+                    if (isset($tmpSplit[$i+1]) && ($flag || $countEsc)) {
+                        if (!$flag) $flag = $i;
+                        $tmpSplit[$flag] .= $char . $tmpSplit[$i+1];
+                        unset($tmpSplit[$i+1]);
+                    }
                 }
-                if ($str[$i] == $escToken) {
-                    $escOpen = $escOpen == true ? false : true;
-                    continue;
-                }
-                if (!$escOpen && $str[$i] == $char) {
-                    $tmp= trim(substr($str, $searchPos, $i - $searchPos));
-                    if (!empty($tmp)) {
-                        $split[]= $tmp;
-                        if ($limit > 0 && count($split) >= $limit) {
+                $split = array();
+                if ($limit > 0) {
+                    $count = 0;
+                    foreach ($tmpSplit as $splitItem) {
+                        $count++;
+                        if ($count <= $limit) {
+                            $split[] = $splitItem;
+                        } else {
                             break;
                         }
                     }
-                    $searchPos = $i + 1;
+                } else {
+                    $split = $tmpSplit;
+                    ksort($split);
                 }
+            } else {
+                if ($limit > 0) {
+                    $split = explode($char, $str, $limit);
+                } else {
+                    $split = explode($char,$str);
+                }
+            }
+
+            foreach ($split as &$item) {
+                $item = trim($item);
             }
         } else {
             $split[]= trim($str);
